@@ -5,25 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>線上抽獎</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f8f9fa;
+            background-color: #ccc;
             padding: 20px;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
+            height: 100vh;
+            color: #444;
+            font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
         }
         .container {
             display: flex;
-            width: 800px;
+            width: 100%;
+            height: 100%;
+            gap: 10px;
         }
-        .left-panel {
-            width: 50%;
-            background: white;
+        .panel {
+            background: #f8f9fa;
             padding: 20px;
-            border-radius: 10px;
+            border-radius: 6px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             text-align: center;
+            display: flex;
+            flex-direction: column;
+        }
+        .left-panel { width: 30%; }
+        .middle-panel, .right-panel {
+            width: 35%;
+            height: 100%;
+        }
+        .middle-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .right-panel {
+            overflow-y: auto;
         }
         input {
             width: 80px;
@@ -32,7 +55,7 @@
             text-align: center;
         }
         button {
-            background-color: #007bff;
+            background-color: #6f2121;
             color: white;
             border: none;
             padding: 10px 20px;
@@ -40,9 +63,10 @@
             cursor: pointer;
             border-radius: 5px;
             margin-top: 10px;
+            font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
         }
         button:hover {
-            background-color: #0056b3;
+            background-color: #971010;
         }
         .result {
             font-size: 40px;
@@ -60,29 +84,32 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .right-panel {
-            width: 50%;
-            margin-left: 20px;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-height: 400px;
+        .table-container {
+            flex: 1;
             overflow-y: auto;
         }
-        .record-table {
+        table {
             width: 100%;
             border-collapse: collapse;
         }
-        .record-table th, .record-table td {
+        th, td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: center;
         }
-        .record-table th {
-            background-color: #007bff;
+        th {
+            background-color: #3f3636;
             color: white;
+        }
+        .highlight {
+            background-color: #ffeb3b;
+            font-weight: bold;
+        }
+        .mt-2 {
+          margin-top: 5px;
+        }
+        .mb-2 {
+          margin-bottom: 5px;
         }
     </style>
 </head>
@@ -90,37 +117,90 @@
 
 <div class="container">
     <!-- 左側：抽獎區 -->
-    <div class="left-panel">
+    <div class="panel left-panel">
         <h2>線上抽獎</h2>
-        <label>最小值：</label>
+        <br>
+        <div class="mb-2">
+          <label>最小值：</label>
         <input type="number" id="min" value="1">
+        </div>
+       <div class="">
         <label>最大值：</label>
         <input type="number" id="max" value="100">
-        <br>
+       </div>
+       <br>
         <button onclick="draw()">開始抽獎</button>
         <div class="result" id="result">🎉</div>
     </div>
 
-    <!-- 右側：開獎紀錄區 -->
-    <div class="right-panel">
+    <!-- 中間：開獎紀錄區 -->
+    <div class="panel middle-panel">
         <h2>開獎紀錄</h2>
-        <table class="record-table">
-            <thead>
-                <tr>
-                    <th>第 X 次</th>
-                    <th>抽獎時間</th>
-                    <th>結果</th>
-                </tr>
-            </thead>
-            <tbody id="record-body">
-                <!-- 記錄會動態插入這裡 -->
-            </tbody>
-        </table>
+        <br>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>第 X 次</th>
+                        <th>抽獎時間</th>
+                        <th>結果</th>
+                    </tr>
+                </thead>
+                <tbody id="record-body">
+                    <!-- 記錄將動態插入 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 右側：名單區 -->
+    <div class="panel right-panel">
+        <h2>參加名單</h2>
+        <br>
+        <button class="" onclick="loadParticipants()">載入名單</button>
+        <br>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>編號</th>
+                        <th>名稱</th>
+                    </tr>
+                </thead>
+                <tbody id="participant-list">
+                    <!-- JSON 名單動態插入 -->
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <script>
-    let drawCount = 0; // 記錄抽獎次數
+    let drawCount = 0;
+    let participants = [];
+
+    // 讀取 JSON 名單
+    function loadParticipants() {
+        fetch('participants.json') // 這裡讀取 JSON 檔案
+            .then(response => response.json())
+            .then(data => {
+                participants = data;
+                updateParticipantTable();
+            })
+            .catch(error => console.error("載入名單失敗:", error));
+    }
+
+    // 更新參加名單表格
+    function updateParticipantTable() {
+        let listBody = document.getElementById("participant-list");
+        listBody.innerHTML = "";
+
+        participants.forEach(p => {
+            let row = document.createElement("tr");
+            row.innerHTML = `<td>${p.id}</td><td>${p.name}</td>`;
+            listBody.appendChild(row);
+        });
+    }
 
     function draw() {
         let min = parseInt(document.getElementById("min").value);
@@ -145,8 +225,8 @@
                     resultDiv.innerText = finalNumber;
                     resultDiv.classList.remove("rolling");
 
-                    // 紀錄抽獎結果
                     saveRecord(finalNumber);
+                    highlightWinner(finalNumber);
                 }, 500);
             }
         }, 100);
@@ -166,8 +246,18 @@
             <td>${number}</td>
         `;
 
-        // 把最新紀錄加到最上面
         recordBody.prepend(newRow);
+    }
+
+    function highlightWinner(number) {
+        let rows = document.querySelectorAll("#participant-list tr");
+
+        rows.forEach(row => {
+            let idCell = row.cells[0];
+            if (idCell.innerText == number) {
+                row.classList.add("highlight");
+            }
+        });
     }
 </script>
 
