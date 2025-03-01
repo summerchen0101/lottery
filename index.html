@@ -219,9 +219,14 @@
             .then(data => {
                 participants = data;
                 updateParticipantTable();
+
+                // 自動更新「最大值」欄位為名單中的最大 ID
+                let maxId = Math.max(...participants.map(p => p.id));
+                document.getElementById("max").value = maxId;
             })
             .catch(error => console.error("載入名單失敗:", error));
     }
+
 
     function updateParticipantTable() {
         let listBody = document.getElementById("participant-list");
