@@ -143,27 +143,30 @@
 <div class="container">
     <!-- 左側：抽獎區 -->
     <div class="panel left-panel">
-      <h2>線上抽獎</h2>
-      <button onclick="loadParticipants()">載入名單</button>
-      <br>
-      <div class="mb-2">
-          <label>最小值：</label>
-          <input type="number" id="min" value="1">
-      </div>
-      <div>
-          <label>最大值：</label>
-          <input type="number" id="max" value="100">
-      </div>
-      <br>
-      <div>
-          <input type="checkbox" id="uniqueWin" checked>
-          <label for="uniqueWin">不可多次中獎</label>
-      </div>
-      <br>
-      <button onclick="draw()">開始抽獎</button>
-      <button onclick="resetDraw()" style="background-color: #444;">清空重置</button>
-      <div class="result" id="result">🎉</div>
+        <h2>線上抽獎</h2>
+        <button onclick="loadParticipants()">載入名單</button>
+        <br>
+        <div class="mb-2">
+            <label>最小值：</label>
+            <input type="number" id="min" value="1">
+        </div>
+        <div>
+            <label>最大值：</label>
+            <input type="number" id="max" value="100">
+        </div>
+        <br>
+        <div>
+            <input type="checkbox" id="uniqueWin" checked>
+            <label for="uniqueWin">不可多次中獎</label>
+        </div>
+        <br>
+        <button onclick="draw()">開始抽獎</button>
+        <button onclick="resetDraw()" style="background-color: #444;">清空重置</button>
+        <br><br>
+        <button onclick="exportWinners()" style="background-color: #198754;">匯出得獎名單</button>
+        <div class="result" id="result">🎉</div>
     </div>
+
 
     <!-- 中間：開獎紀錄區 -->
     <div class="panel middle-panel">
@@ -276,21 +279,22 @@
     }
 
     function saveRecord(number) {
-      drawCount++;
-      let now = new Date();
-      let timeString = now.toLocaleTimeString();
+        drawCount++;
+        let now = new Date();
+        let taiwanYear = now.getFullYear() - 1911; // 轉換為民國年
+        let timeString = `${taiwanYear}/${now.getMonth() + 1}/${now.getDate()} ${now.toLocaleTimeString()}`; // 114/3/1 23:20:32
 
-      let recordBody = document.getElementById("record-body");
-      let newRow = document.createElement("tr");
+        let recordBody = document.getElementById("record-body");
+        let newRow = document.createElement("tr");
 
-      newRow.innerHTML = `
-          <td>${drawCount}</td>
-          <td>${timeString}</td>
-          <td style="font-size: 24px; font-weight: bold; color: #D84315;">${number}</td>
-      `;
+        newRow.innerHTML = `
+            <td>${drawCount}</td>
+            <td>${timeString}</td>
+            <td style="font-size: 24px; font-weight: bold; color: #D84315;">${number}</td>
+        `;
 
-      recordBody.prepend(newRow);
-  }
+        recordBody.prepend(newRow);
+    }
 
     function highlightWinner(number) {
         let rows = document.querySelectorAll("#participant-list tr");
@@ -310,12 +314,50 @@
         // 清空已中獎號碼記錄
         drawnNumbers.clear();
 
+        // 重置計數（確保下一次抽獎從 1 開始）
+        drawCount = 0;
+
         // 移除所有名單的亮燈效果
         let rows = document.querySelectorAll("#participant-list tr");
         rows.forEach(row => row.classList.remove("highlight"));
 
         // 恢復初始數字顯示
         document.getElementById("result").innerText = "🎉";
+    }
+
+    function exportWinners() {
+        let records = document.querySelectorAll("#record-body tr");
+        if (records.length === 0) {
+            alert("目前沒有得獎紀錄可以匯出！");
+            return;
+        }
+
+        let csvContent = "序號,中獎時間,中獎人,中獎編號\n"; // CSV 標頭
+        records.forEach((row, index) => {
+            let cols = row.querySelectorAll("td");
+            let drawNumber = cols[0].innerText; // 抽獎次數
+            let drawTime = cols[1].innerText; // 中獎時間（已經是 114/3/1 23:20:32 格式）
+            let winnerNumber = parseInt(cols[2].innerText); // 中獎編號
+
+            // 找到對應的中獎人名稱
+            let winnerName = "未知";
+            participants.forEach(p => {
+                if (p.id === winnerNumber) {
+                    winnerName = p.name;
+                }
+            });
+
+            csvContent += `${drawNumber},${drawTime},${winnerName},${winnerNumber}\n`;
+        });
+
+        // 建立 CSV 檔案並下載
+        let blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+        let link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `得獎名單_${new Date().toLocaleDateString()}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
 </script>
