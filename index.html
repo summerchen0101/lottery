@@ -23,6 +23,7 @@
         .container {
             display: flex;
             width: 100%;
+            max-width: 1920px;
             height: 100%;
             gap: 10px;
         }
@@ -88,6 +89,29 @@
             flex: 1;
             overflow-y: auto;
         }
+        .table-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table-container th, .table-container td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .table-container th {
+            background-color: #3f3636;
+            color: white;
+        }
+        .table-container td:nth-child(1) {
+            width: 30%; /* 第 X 次欄位縮小 */
+        }
+        .table-container td:nth-child(3) {
+            width: 35%; /* 中獎結果欄位變大 */
+            font-size: 24px; /* 放大數字 */
+            font-weight: bold;
+            color: #D84315; /* 深橘紅色 */
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -101,6 +125,7 @@
             background-color: #3f3636;
             color: white;
         }
+
         .highlight {
             background-color: #ffeb3b;
             font-weight: bold;
@@ -118,19 +143,26 @@
 <div class="container">
     <!-- 左側：抽獎區 -->
     <div class="panel left-panel">
-        <h2>線上抽獎</h2>
-        <br>
-        <div class="mb-2">
+      <h2>線上抽獎</h2>
+      <button onclick="loadParticipants()">載入名單</button>
+      <br>
+      <div class="mb-2">
           <label>最小值：</label>
-        <input type="number" id="min" value="1">
-        </div>
-       <div class="">
-        <label>最大值：</label>
-        <input type="number" id="max" value="100">
-       </div>
-       <br>
-        <button onclick="draw()">開始抽獎</button>
-        <div class="result" id="result">🎉</div>
+          <input type="number" id="min" value="1">
+      </div>
+      <div>
+          <label>最大值：</label>
+          <input type="number" id="max" value="100">
+      </div>
+      <br>
+      <div>
+          <input type="checkbox" id="uniqueWin" checked>
+          <label for="uniqueWin">不可多次中獎</label>
+      </div>
+      <br>
+      <button onclick="draw()">開始抽獎</button>
+      <button onclick="resetDraw()" style="background-color: #444;">清空重置</button>
+      <div class="result" id="result">🎉</div>
     </div>
 
     <!-- 中間：開獎紀錄區 -->
@@ -157,8 +189,6 @@
     <div class="panel right-panel">
         <h2>參加名單</h2>
         <br>
-        <button class="" onclick="loadParticipants()">載入名單</button>
-        <br>
         <div class="table-container">
             <table>
                 <thead>
@@ -178,10 +208,10 @@
 <script>
     let drawCount = 0;
     let participants = [];
+    let drawnNumbers = new Set(); // 存儲已中獎的號碼
 
-    // 讀取 JSON 名單
     function loadParticipants() {
-        fetch('participants.json') // 這裡讀取 JSON 檔案
+        fetch('participants.json')
             .then(response => response.json())
             .then(data => {
                 participants = data;
@@ -190,7 +220,6 @@
             .catch(error => console.error("載入名單失敗:", error));
     }
 
-    // 更新參加名單表格
     function updateParticipantTable() {
         let listBody = document.getElementById("participant-list");
         listBody.innerHTML = "";
@@ -205,9 +234,22 @@
     function draw() {
         let min = parseInt(document.getElementById("min").value);
         let max = parseInt(document.getElementById("max").value);
+        let uniqueWin = document.getElementById("uniqueWin").checked;
 
         if (isNaN(min) || isNaN(max) || min >= max) {
             alert("請輸入有效的範圍");
+            return;
+        }
+
+        let availableNumbers = [];
+        for (let i = min; i <= max; i++) {
+            if (!uniqueWin || !drawnNumbers.has(i)) {
+                availableNumbers.push(i);
+            }
+        }
+
+        if (availableNumbers.length === 0) {
+            document.getElementById("result").innerText = "0"; // 所有人都中獎過了
             return;
         }
 
@@ -216,49 +258,66 @@
 
         let count = 0;
         let interval = setInterval(() => {
-            resultDiv.innerText = Math.floor(Math.random() * (max - min + 1)) + min;
+            resultDiv.innerText = availableNumbers[Math.floor(Math.random() * availableNumbers.length)];
             count++;
-            if (count > 15) {
+            if (count > 10) {
                 clearInterval(interval);
                 setTimeout(() => {
-                    let finalNumber = Math.floor(Math.random() * (max - min + 1)) + min;
+                    let finalNumber = availableNumbers[Math.floor(Math.random() * availableNumbers.length)];
                     resultDiv.innerText = finalNumber;
                     resultDiv.classList.remove("rolling");
 
                     saveRecord(finalNumber);
                     highlightWinner(finalNumber);
+                    drawnNumbers.add(finalNumber); // 記錄已中獎的號碼
                 }, 500);
             }
         }, 100);
     }
 
     function saveRecord(number) {
-        drawCount++;
-        let now = new Date();
-        let timeString = now.toLocaleTimeString();
+      drawCount++;
+      let now = new Date();
+      let timeString = now.toLocaleTimeString();
 
-        let recordBody = document.getElementById("record-body");
-        let newRow = document.createElement("tr");
+      let recordBody = document.getElementById("record-body");
+      let newRow = document.createElement("tr");
 
-        newRow.innerHTML = `
-            <td>${drawCount}</td>
-            <td>${timeString}</td>
-            <td>${number}</td>
-        `;
+      newRow.innerHTML = `
+          <td>${drawCount}</td>
+          <td>${timeString}</td>
+          <td style="font-size: 24px; font-weight: bold; color: #D84315;">${number}</td>
+      `;
 
-        recordBody.prepend(newRow);
-    }
+      recordBody.prepend(newRow);
+  }
 
     function highlightWinner(number) {
         let rows = document.querySelectorAll("#participant-list tr");
 
         rows.forEach(row => {
             let idCell = row.cells[0];
-            if (idCell.innerText == number) {
+            if (parseInt(idCell.innerText) === number) {
                 row.classList.add("highlight");
             }
         });
     }
+
+    function resetDraw() {
+        // 清除開獎紀錄
+        document.getElementById("record-body").innerHTML = "";
+
+        // 清空已中獎號碼記錄
+        drawnNumbers.clear();
+
+        // 移除所有名單的亮燈效果
+        let rows = document.querySelectorAll("#participant-list tr");
+        rows.forEach(row => row.classList.remove("highlight"));
+
+        // 恢復初始數字顯示
+        document.getElementById("result").innerText = "🎉";
+    }
+
 </script>
 
 </body>
